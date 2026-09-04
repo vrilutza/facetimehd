@@ -1214,10 +1214,14 @@ int fthd_start_channel(struct fthd_private *dev_priv, int channel)
 	ret = fthd_isp_cmd_channel_face_detection_start(dev_priv, 0);
 	if (ret)
 		return ret;
-	ret = fthd_isp_cmd_channel_frame_rate_max(dev_priv, 0, dev_priv->frametime * 256);
+	/*
+	 * The ISP takes a frame rate in 1/256 fps units, while frametime is a
+	 * frame interval in milliseconds.
+	 */
+	ret = fthd_isp_cmd_channel_frame_rate_max(dev_priv, 0, 256000 / dev_priv->frametime);
 	if (ret)
 		return ret;
-	ret = fthd_isp_cmd_channel_frame_rate_min(dev_priv, 0, dev_priv->frametime * 256);
+	ret = fthd_isp_cmd_channel_frame_rate_min(dev_priv, 0, 256000 / dev_priv->frametime);
 	if (ret)
 		return ret;
 	ret = fthd_isp_cmd_channel_temporal_filter_start(dev_priv, 0);
