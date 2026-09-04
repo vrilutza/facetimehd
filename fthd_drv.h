@@ -121,6 +121,7 @@ struct fthd_private {
 
 	struct v4l2_ctrl_handler v4l2_ctrl_handler;
 	int frametime;
+	int exposure_auto_priority;
 	unsigned int sequence;
 	struct dentry *debugfs;
 };

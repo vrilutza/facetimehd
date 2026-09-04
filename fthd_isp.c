@@ -1134,6 +1134,24 @@ int fthd_isp_cmd_channel_awb(struct fthd_private *dev_priv, int channel, int ena
 	return fthd_isp_cmd(dev_priv, op, &cmd, sizeof(cmd), &len);
 }
 
+/* Slowest frame rate the auto exposure may fall back to, in 1/256 fps units. */
+#define FTHD_AE_FPS_MIN		(5 * 256)
+
+/*
+ * The auto exposure gathers light by lengthening the exposure, which it can
+ * only do by slowing down. Give it room to do so down to FTHD_AE_FPS_MIN when
+ * the application allows a varying frame rate.
+ */
+int fthd_isp_ae_frame_rate_min(struct fthd_private *dev_priv)
+{
+	int rate = 256000 / dev_priv->frametime;
+
+	if (dev_priv->exposure_auto_priority && rate > FTHD_AE_FPS_MIN)
+		rate = FTHD_AE_FPS_MIN;
+
+	return rate;
+}
+
 int fthd_start_channel(struct fthd_private *dev_priv, int channel)
 {
 	int ret, x1 = 0, x2 = 0, pixelformat;
@@ -1221,7 +1239,8 @@ int fthd_start_channel(struct fthd_private *dev_priv, int channel)
 	ret = fthd_isp_cmd_channel_frame_rate_max(dev_priv, 0, 256000 / dev_priv->frametime);
 	if (ret)
 		return ret;
-	ret = fthd_isp_cmd_channel_frame_rate_min(dev_priv, 0, 256000 / dev_priv->frametime);
+	ret = fthd_isp_cmd_channel_frame_rate_min(dev_priv, 0,
+						  fthd_isp_ae_frame_rate_min(dev_priv));
 	if (ret)
 		return ret;
 	ret = fthd_isp_cmd_channel_temporal_filter_start(dev_priv, 0);
