@@ -467,7 +467,7 @@ static int fthd_pci_probe(struct pci_dev *pdev,
 
 	dev_priv->ddr_model = 4;
 	dev_priv->ddr_speed = 450;
-	dev_priv->frametime = 40; /* 25 fps */
+	dev_priv->frametime = 33; /* 30 fps */
 
 	spin_lock_init(&dev_priv->io_lock);
 	mutex_init(&dev_priv->vb2_queue_lock);
