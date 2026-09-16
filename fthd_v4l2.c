@@ -57,50 +57,56 @@ static int fthd_buffer_queue_setup(
 
 	struct fthd_private *dev_priv = vb2_get_drv_priv(vq);
 	struct v4l2_pix_format *cur_fmt = &dev_priv->fmt.fmt;
-	int i, total_size = 0;
+	unsigned long budget = 16 * 1024 * 1024;
+	unsigned long size;
+	unsigned int i, allocated, slots, limit;
+	bool create = *nplanes != 0;
 
-	/*
-	 * VIDIOC_CREATE_BUFS arrives with the plane count already set and
-	 * needs the allocator device filled in as well: vb2 hands
-	 * alloc_devs[] straight to the DMA allocator, which rejects a NULL
-	 * device.
-	 */
-	if (*nplanes) {
-		if (sizes[0] < cur_fmt->bytesperline * cur_fmt->height)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
+	allocated = vb2_get_num_buffers(vq);
+	slots = vq->max_num_buffers;
+#else
+	allocated = vq->num_buffers;
+	slots = vq->num_buffers;
+#endif
+	if (create) {
+		if (*nplanes != 1 || sizes[0] < cur_fmt->sizeimage)
 			return -EINVAL;
-		for (i = 0; i < *nplanes; i++) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
-			alloc_devs[i] = &dev_priv->pdev->dev;
-#else
-			alloc_ctxs[i] = dev_priv->alloc_ctx;
-#endif
-		}
-		return 0;
+	} else {
+		*nplanes = 1;
+		sizes[0] = cur_fmt->sizeimage;
 	}
 
-	*nplanes = dev_priv->fmt.planes;
-
-	if (!*nplanes)
-		return -EINVAL;
-
-	/* FIXME: We assume single plane format here but not below */
-	for (i = 0; i < *nplanes; i++) {
-		sizes[i] = cur_fmt->sizeimage;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
-		alloc_devs[i] = &dev_priv->pdev->dev;
+	/* Account for buffers already created, including page rounding. */
+	for (i = 0; i < slots; i++) {
+		struct vb2_buffer *vb;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
+		vb = vb2_get_buffer(vq, i);
 #else
-		alloc_ctxs[i] = dev_priv->alloc_ctx;
+		vb = vq->bufs[i];
 #endif
-		total_size += sizes[i];
+		if (!vb)
+			continue;
+		size = PAGE_ALIGN((unsigned long)vb2_plane_size(vb, 0));
+		if (!size || size >= budget)
+			return -ENOMEM;
+		budget -= size;
 	}
-
-	*nbuffers = (4096 * 4096) / total_size;
-	if (*nbuffers > FTHD_BUFFERS)
-		*nbuffers = FTHD_BUFFERS;
-	if (*nbuffers <= 1)
+	if (allocated >= FTHD_BUFFERS)
+		return -ENOBUFS;
+	size = PAGE_ALIGN((unsigned long)sizes[0]);
+	if (!size || size > budget)
 		return -ENOMEM;
-	pr_debug("using %d buffers\n", *nbuffers);
+	limit = min_t(unsigned int, FTHD_BUFFERS - allocated, budget / size);
+	*nbuffers = min(create ? *nbuffers : max(*nbuffers, 2U), limit);
+	if (!*nbuffers || (!create && *nbuffers < 2))
+		return -ENOMEM;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,8,0)
+	alloc_devs[0] = &dev_priv->pdev->dev;
+#else
+	alloc_ctxs[0] = dev_priv->alloc_ctx;
+#endif
 	return 0;
 }
 
