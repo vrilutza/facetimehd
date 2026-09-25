@@ -302,8 +302,9 @@ static int fthd_start_streaming(struct vb2_queue *vq, unsigned int count)
 		if (fthd_send_h2t_buffer(dev_priv, ctx)) {
 			vb2_buffer_done(ctx->vb, VB2_BUF_STATE_ERROR);
 			ctx->state = BUF_ALLOC;
+			continue;
 		}
-			ctx->state = BUF_HW_QUEUED;
+		ctx->state = BUF_HW_QUEUED;
 	}
 	return 0;
 }
