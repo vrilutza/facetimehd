@@ -36,9 +36,20 @@ ISP, so there is no offset to correct on the driver side, and the format cannot 
 correctly today — which is why dropping it is the right call for now, even though the cause is an
 indexing shift rather than broken firmware output.
 
+Firmware and calibration
+------------------------
+
 Calibration files and firmware come from
 [facetimehd-firmware](https://github.com/vrilutza/facetimehd-firmware); its default branch carries
-two fixes of its own.
+two fixes of its own. Neither repository contains the binaries themselves — they are Apple's, and the
+tool extracts them from your own download, verifying each one against a known hash.
+
+This branch is used daily here with firmware **5.60.0**, which the tool fetches by default and which
+identifies itself as `S2ISP-01.57.00`. The older 1.43.0 works just as well: same formats, same sizes,
+same `1571_01XX.dat` calibration. The difference is in the image, measured on a static scene in low
+light over three interleaved rounds of 160 frames at the same exposure: 5.60.0 has **58 % less noise**
+but **33 % less real detail**. Cleaner and softer against grainier and sharper. `make FW_VER=1.43.0`
+gets the other one; both files can sit side by side in `/lib/firmware/facetimehd/`.
 
 ---
 
