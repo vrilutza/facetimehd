@@ -5,6 +5,9 @@ This is a fork of [patjak/facetimehd](https://github.com/patjak/facetimehd). The
 carries upstream `master` plus the pull requests listed below, all of them open upstream at the time
 of writing. `master` here is kept as a plain mirror of upstream, for rebasing.
 
+[#340](https://github.com/patjak/facetimehd/pull/340) was merged upstream on 25 September and is no
+longer listed: it is part of `master` now.
+
 Everything here is tested on a **MacBookPro14,1** (sensor `0005 0248`), kernel 7.2.6, and each patch
 was also verified on its own before being combined.
 
@@ -12,8 +15,7 @@ was also verified on its own before being combined.
 |---|---|
 | [#331](https://github.com/patjak/facetimehd/pull/331) | `ENUM_FRAMESIZES` reports the real range instead of a single size |
 | [#334](https://github.com/patjak/facetimehd/pull/334) | auto exposure settles in 200 ms instead of a full second |
-| [#338](https://github.com/patjak/facetimehd/pull/338) | the sensor crop is centred before scaling |
-| [#340](https://github.com/patjak/facetimehd/pull/340) | the S2 PLL lock loop waited for the wrong bit state; errors now propagate |
+| [#338](https://github.com/patjak/facetimehd/pull/338) | the sensor crop is centred before scaling, with the width kept even |
 | [#342](https://github.com/patjak/facetimehd/pull/342) | `CREATE_BUFS` is bounded by free contexts and memory |
 | [#343](https://github.com/patjak/facetimehd/pull/343) | frame rates keep the ISP fixed-point units |
 | [#344](https://github.com/patjak/facetimehd/pull/344) | auto exposure may lower the frame rate in low light |
@@ -23,6 +25,8 @@ was also verified on its own before being combined.
 | [#348](https://github.com/patjak/facetimehd/pull/348) | the set file for sensor `0x248` is loaded, so the camera runs calibrated |
 | [#350](https://github.com/patjak/facetimehd/pull/350) | the driver says when the calibration file is missing, and which one it wants |
 | [#351](https://github.com/patjak/facetimehd/pull/351) | the MacBook Air set file is picked by product name, not board name |
+| [#352](https://github.com/patjak/facetimehd/pull/352) | crop windows the sensor interface can't take are refused instead of killing the camera |
+| [#353](https://github.com/patjak/facetimehd/pull/353) | the buffers come back when a stream start fails, as videobuf2 requires |
 
 `v4l2-compliance -d /dev/video0 -s` on this branch: **57 tests, 57 passed, 0 failures, 0 warnings**.
 On upstream `master` the same run gives 51 passed and **6 failures** (`Scaling`, and five on the
