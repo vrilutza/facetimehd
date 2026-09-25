@@ -75,6 +75,10 @@ sudo sed -i "s/^PACKAGE_VERSION=.*/PACKAGE_VERSION=$V/" /usr/src/facetimehd-$V/d
 sudo dkms install -m facetimehd -v $V
 ```
 
+That installs it for the kernel you are running, and DKMS rebuilds it for every kernel you install
+afterwards. If you keep an older kernel around as a fallback, install it there too:
+`sudo dkms install -m facetimehd -v $V -k <that kernel>`.
+
 **3. Check it came up:**
 
 ```
