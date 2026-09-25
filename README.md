@@ -36,6 +36,58 @@ ISP, so there is no offset to correct on the driver side, and the format cannot 
 correctly today — which is why dropping it is the right call for now, even though the cause is an
 indexing shift rather than broken firmware output.
 
+Installing
+----------
+
+On Debian and derivatives; adapt the package names elsewhere.
+
+```
+sudo apt install build-essential linux-headers-$(uname -r) dkms git curl xz-utils cpio
+```
+
+**1. Firmware and calibration first** — the driver loads at probe and needs them:
+
+```
+git clone https://github.com/vrilutza/facetimehd-firmware.git
+cd facetimehd-firmware
+make                 # downloads from Apple and verifies every file against a known hash
+sudo make install    # into /lib/firmware/facetimehd/
+```
+
+**2. The driver.** Either a plain build:
+
+```
+git clone https://github.com/vrilutza/facetimehd.git
+cd facetimehd
+make
+sudo make install
+sudo depmod -a
+sudo modprobe facetimehd
+```
+
+or, to survive kernel upgrades, through DKMS:
+
+```
+V=0.7.2+patched
+sudo cp -r . /usr/src/facetimehd-$V
+sudo sed -i "s/^PACKAGE_VERSION=.*/PACKAGE_VERSION=$V/" /usr/src/facetimehd-$V/dkms.conf
+sudo dkms install -m facetimehd -v $V
+```
+
+**3. Check it came up:**
+
+```
+v4l2-ctl --list-devices
+dmesg | grep facetimehd | grep -E 'set file|S2 PLL'
+```
+
+A healthy load says `S2 PLL is locked after 10 us` and `loaded set file facetimehd/NNNN_01XX.dat`.
+If it says the set file is missing, step 1 did not run or did not cover your sensor — the message
+names the file it wants.
+
+The driver conflicts with `bdc_pci`, which the DKMS config blacklists for you; on a plain build,
+blacklist it yourself if your distribution ships it.
+
 Firmware and calibration
 ------------------------
 
