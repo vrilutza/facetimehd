@@ -69,7 +69,8 @@ or, to survive kernel upgrades, through DKMS:
 
 ```
 V=0.7.2+patched
-sudo cp -r . /usr/src/facetimehd-$V
+sudo mkdir -p /usr/src/facetimehd-$V
+git archive HEAD | sudo tar -x -C /usr/src/facetimehd-$V     # source only, no build leftovers
 sudo sed -i "s/^PACKAGE_VERSION=.*/PACKAGE_VERSION=$V/" /usr/src/facetimehd-$V/dkms.conf
 sudo dkms install -m facetimehd -v $V
 ```
