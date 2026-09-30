@@ -1,3 +1,113 @@
+facetimehd — patched branch
+===========================
+
+This is a fork of [patjak/facetimehd](https://github.com/patjak/facetimehd). The default branch
+carries upstream `master` plus the pull requests listed below, all of them open upstream at the time
+of writing. `master` here is kept as a plain mirror of upstream, for rebasing.
+
+Thirteen other patches from this branch are already in upstream `master` and so are not listed:
+#328, #329, #330, #332, #333, #334, #338, #340, #348, #350, #351, #352 and #354.
+
+Everything here is tested on a **MacBookPro14,1** (sensor `0005 0248`), kernel 7.2.6, and each patch
+was also verified on its own before being combined.
+
+| PR | what it fixes |
+|---|---|
+| [#331](https://github.com/patjak/facetimehd/pull/331) | `ENUM_FRAMESIZES` reports the real range instead of a single size |
+| [#342](https://github.com/patjak/facetimehd/pull/342) | `CREATE_BUFS` is bounded by free contexts and memory |
+| [#343](https://github.com/patjak/facetimehd/pull/343) | frame rates keep the ISP fixed-point units |
+| [#344](https://github.com/patjak/facetimehd/pull/344) | auto exposure may lower the frame rate in low light |
+| [#345](https://github.com/patjak/facetimehd/pull/345) | up to eight capture buffers instead of four |
+| [#346](https://github.com/patjak/facetimehd/pull/346) | YVYU is no longer advertised; its output is unusable as delivered (see note) |
+| [#347](https://github.com/patjak/facetimehd/pull/347) | the native sensor bounds are exposed through `G_SELECTION` |
+| [#353](https://github.com/patjak/facetimehd/pull/353) | the buffers come back when a stream start fails, as videobuf2 requires |
+
+`v4l2-compliance -d /dev/video0 -s` on this branch: **57 tests, 57 passed, 0 failures, 0 warnings**.
+On upstream `master` the same run gives 51 passed and **6 failures** (`Scaling`, and five on the
+`CREATE_BUFS` paths).
+
+**Note on #346.** Measured here, the YVYU stream is not invalid data: it is the correct frame shifted
+by exactly one byte. Read at a one-byte offset it matches the YUYV frame to the second decimal; at a
+three-byte offset the U and V planes swap, as YVYU requires. The offset is constant across 1280x720,
+800x600 and 640x480. The driver treats both formats identically apart from the value it sends the
+ISP, so there is no offset to correct on the driver side, and the format cannot be delivered
+correctly today — which is why dropping it is the right call for now, even though the cause is an
+indexing shift rather than broken firmware output.
+
+Installing
+----------
+
+On Debian and derivatives; adapt the package names elsewhere.
+
+```
+sudo apt install build-essential linux-headers-$(uname -r) dkms git curl xz-utils cpio
+```
+
+**1. Firmware and calibration first** — the driver loads at probe and needs them:
+
+```
+git clone https://github.com/vrilutza/facetimehd-firmware.git
+cd facetimehd-firmware
+make                 # downloads from Apple and verifies every file against a known hash
+sudo make install    # into /lib/firmware/facetimehd/
+```
+
+**2. The driver.** Either a plain build:
+
+```
+git clone https://github.com/vrilutza/facetimehd.git
+cd facetimehd
+make
+sudo make install
+sudo depmod -a
+sudo modprobe facetimehd
+```
+
+or, to survive kernel upgrades, through DKMS:
+
+```
+V=0.7.2+patched
+sudo mkdir -p /usr/src/facetimehd-$V
+git archive HEAD | sudo tar -x -C /usr/src/facetimehd-$V     # source only, no build leftovers
+sudo sed -i "s/^PACKAGE_VERSION=.*/PACKAGE_VERSION=$V/" /usr/src/facetimehd-$V/dkms.conf
+sudo dkms install -m facetimehd -v $V
+```
+
+That installs it for the kernel you are running, and DKMS rebuilds it for every kernel you install
+afterwards. If you keep an older kernel around as a fallback, install it there too:
+`sudo dkms install -m facetimehd -v $V -k <that kernel>`.
+
+**3. Check it came up:**
+
+```
+v4l2-ctl --list-devices
+dmesg | grep facetimehd | grep -E 'set file|S2 PLL'
+```
+
+A healthy load says `S2 PLL is locked after 10 us` and `loaded set file facetimehd/NNNN_01XX.dat`.
+If it says the set file is missing, step 1 did not run or did not cover your sensor — the message
+names the file it wants.
+
+The driver conflicts with `bdc_pci`, which the DKMS config blacklists for you; on a plain build,
+blacklist it yourself if your distribution ships it.
+
+Firmware and calibration
+------------------------
+
+Calibration files and firmware come from
+[facetimehd-firmware](https://github.com/vrilutza/facetimehd-firmware); its default branch carries
+two fixes of its own. Neither repository contains the binaries themselves — they are Apple's, and the
+tool extracts them from your own download, verifying each one against a known hash.
+
+This branch is used daily here with firmware **5.60.0**, which the tool fetches by default and which
+identifies itself as `S2ISP-01.57.00`. The older 1.43.0 works just as well: same formats, same sizes,
+same `1571_01XX.dat` calibration. The difference is in the image, measured on a static scene in low
+light over three interleaved rounds of 160 frames at the same exposure: 5.60.0 has **58 % less noise**
+but **33 % less real detail**. Cleaner and softer against grainier and sharper. `make FW_VER=1.43.0`
+gets the other one; both files can sit side by side in `/lib/firmware/facetimehd/`.
+
+---
+
 facetimehd
 ==========
 
