@@ -3,13 +3,14 @@ facetimehd — patched branch
 
 This is a fork of [patjak/facetimehd](https://github.com/patjak/facetimehd). The default branch
 carries upstream `master` plus the pull requests listed below, all of them open upstream at the time
-of writing. `master` here is kept as a plain mirror of upstream, for rebasing.
+of writing. Two of them are not mine — #346 and #355 — and are included because they were tested here
+and fix real problems. `master` here is kept as a plain mirror of upstream, for rebasing.
 
 Thirteen other patches from this branch are already in upstream `master` and so are not listed:
 #328, #329, #330, #332, #333, #334, #338, #340, #348, #350, #351, #352 and #354.
 
-Everything here is tested on a **MacBookPro14,1** (sensor `0005 0248`), kernel 7.2.6, and each patch
-was also verified on its own before being combined.
+The combined branch is tested on a **MacBookPro14,1** (sensor `0005 0248`), kernel 7.2.8. That is the
+only configuration the results below describe; how each PR was tested on its own is in its description.
 
 | PR | what it fixes |
 |---|---|
@@ -18,11 +19,15 @@ was also verified on its own before being combined.
 | [#343](https://github.com/patjak/facetimehd/pull/343) | frame rates keep the ISP fixed-point units |
 | [#344](https://github.com/patjak/facetimehd/pull/344) | auto exposure may lower the frame rate in low light |
 | [#345](https://github.com/patjak/facetimehd/pull/345) | up to eight capture buffers instead of four |
-| [#346](https://github.com/patjak/facetimehd/pull/346) | YVYU is no longer advertised; its output is unusable as delivered (see note) |
+| [#346](https://github.com/patjak/facetimehd/pull/346) | YVYU is no longer advertised; its output is unusable as delivered (by kurobeats; see note) |
 | [#347](https://github.com/patjak/facetimehd/pull/347) | the native sensor bounds are exposed through `G_SELECTION` |
 | [#353](https://github.com/patjak/facetimehd/pull/353) | the buffers come back when a stream start fails, as videobuf2 requires |
+| [#355](https://github.com/patjak/facetimehd/pull/355) | `USERPTR` buffers that start inside a page are accepted again, with the offset carried to the hardware (by pschatzmann; see note) |
 
-`v4l2-compliance -d /dev/video0 -s` on this branch: **57 tests, 57 passed, 0 failures, 0 warnings**.
+`v4l2-compliance -d /dev/video0 -s` on this branch: **57 tests, 57 passed, 0 failures, 0 warnings**,
+with the two `USERPTR` streaming tests actually exercised rather than reported as not supported.
+`DMABUF` is not tested here (`v4l2-compliance` needs an exporting device for it), and none of these
+tests exercises PipeWire's import of buffers.
 On upstream `master` the same run gives 51 passed and **6 failures** (`Scaling`, and five on the
 `CREATE_BUFS` paths).
 
@@ -33,6 +38,19 @@ three-byte offset the U and V planes swap, as YVYU requires. The offset is const
 ISP, so there is no offset to correct on the driver side, and the format cannot be delivered
 correctly today — which is why dropping it is the right call for now, even though the cause is an
 indexing shift rather than broken firmware output.
+
+**Note on #355.** Upstream `master` refuses `USERPTR` entirely, through #333 — a patch of mine. #333
+stopped a real corruption: the driver dropped the offset of a buffer that does not start on a page
+boundary, and the camera wrote up to a page early. But it removed the mode instead of carrying the
+offset, which the hardware accepts. Going by the trace in #355 and PipeWire's source, that breaks
+PipeWire's import of buffers an application supplies; the import itself was not reproduced here. #355
+carries the offset instead. Tested here with guard bytes at in-page offsets 0, 0x40, 0x100, 0x800 and
+1000: no canary modification was detected in the guards, and the image lines up in luminance, where the
+same tree with #333 reverted shifted it by the offset. Details and limits are in
+[the review thread](https://github.com/patjak/facetimehd/pull/355).
+
+**Not included: #356**, the warmup-frame patch. It is a draft, and whether it should apply to every
+sensor or only the one measured here is an open question for the maintainer.
 
 Installing
 ----------
@@ -84,7 +102,7 @@ v4l2-ctl --list-devices
 dmesg | grep facetimehd | grep -E 'set file|S2 PLL'
 ```
 
-A healthy load says `S2 PLL is locked after 10 us` and `loaded set file facetimehd/NNNN_01XX.dat`.
+A healthy load says `S2 PLL is locked after 10 us` (sometimes 20) and `loaded set file facetimehd/NNNN_01XX.dat`.
 If it says the set file is missing, step 1 did not run or did not cover your sensor — the message
 names the file it wants.
 
