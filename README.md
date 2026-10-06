@@ -6,15 +6,16 @@ carries upstream `master` plus the changes from the open pull request #355 by ps
 below. The other patches previously listed here are now part of upstream. `master` here is kept
 as a plain mirror of upstream, for rebasing.
 
-The validation below was recorded on revision `bed0636`, on a **MacBookPro14,1** (sensor `0005 0248`),
-kernel 7.2.8. Synchronizing the upstream merges leaves every tracked file except this README
-unchanged from that revision. The recorded results describe only that configuration.
+The compliance result below was recorded on revision `702c022`, on a **MacBookPro14,1**
+(sensor `0005 0248`), kernel 7.2.8. The later documentation commits and upstream merge leave every
+tracked file except this README unchanged from that tested revision. The result describes only
+that configuration.
 
 | PR | what it fixes |
 |---|---|
 | [#355](https://github.com/patjak/facetimehd/pull/355) | `USERPTR` buffers that start inside a page are accepted again, with the offset carried to the hardware (by pschatzmann; see note) |
 
-`v4l2-compliance -d /dev/video0 -s` on this branch: **57 tests, 57 passed, 0 failures, 0 warnings**,
+`v4l2-compliance -d /dev/video0 -s` on that revision: **57 tests, 57 passed, 0 failures, 0 warnings**,
 with the two `USERPTR` streaming tests actually exercised rather than reported as not supported.
 `DMABUF` is not tested here (`v4l2-compliance` needs an exporting device for it), and none of these
 tests exercises PipeWire's import of buffers.
@@ -24,9 +25,12 @@ stopped a real corruption: the driver dropped the offset of a buffer that does n
 boundary, and the camera wrote up to a page early. But it removed the mode instead of carrying the
 offset, which the hardware accepts. Going by the trace in #355 and PipeWire's source, that breaks
 PipeWire's import of buffers an application supplies; the import itself was not reproduced here. #355
-carries the offset instead. Tested here with guard bytes at in-page offsets 0, 0x40, 0x100, 0x800 and
-1000: no canary modification was detected in the guards, and the image lines up in luminance, where the
-same tree with #333 reverted shifted it by the offset. Details and limits are in
+carries the offset instead. A separate test of #355 at `3102ec0` used 1280x720 YUYV and four buffers
+on the same MacBook, with guard bytes at in-page offsets 0, 0x40, 0x100, 0x800 and 1000. No canary
+modification was detected in the guards, and the saved frames line up in luminance. The control,
+then-current upstream master with #333 reverted, reproduced the early writes and image shift.
+This was a test of the PR branch, not of the combined fork, and does not prove complete buffer
+filling or the absence of writes outside the allocated guards. Details and limits are in
 [the review thread](https://github.com/patjak/facetimehd/pull/355).
 
 **Not included: #356**, the warmup-frame patch. It is a draft, and whether it should apply to every
@@ -113,12 +117,13 @@ the extraction changes in [#14](https://github.com/patjak/facetimehd-firmware/pu
 Neither repository contains the binaries themselves — they are Apple's, and the
 tool extracts them from your own download, verifying each one against a known hash.
 
-This branch is used daily here with firmware **5.60.0**, which the tool fetches by default and which
-identifies itself as `S2ISP-01.57.00`. The older 1.43.0 works just as well: same formats, same sizes,
-same `1571_01XX.dat` calibration. The difference is in the image, measured on a static scene in low
-light over three interleaved rounds of 160 frames at the same exposure: 5.60.0 has **58 % less noise**
-but **33 % less real detail**. Cleaner and softer against grainier and sharper. For switching firmware
-versions, follow the firmware repository's instructions in a separate checkout.
+Firmware **5.60.0**, fetched by default, identifies itself as `S2ISP-01.57.00`. In tests on this
+MacBook, it and 1.43.0 exposed the same formats and sizes and used the same `1571_01XX.dat` calibration.
+A comparison on 25 September 2026 used a static scene in low light, three interleaved rounds of
+160 frames per version and similar mean luminance. The recorded estimates were **58 % less temporal
+noise** and **33 % less spatial detail** with 5.60.0. These describe those captures, not other scenes
+or models. For switching firmware versions, follow the firmware repository's instructions in a
+separate checkout.
 The driver always requests `facetimehd/firmware.bin`; installing the other version replaces that file.
 
 ---
