@@ -94,7 +94,8 @@ Firmware and calibration
 
 Calibration files and firmware come from
 [facetimehd-firmware](https://github.com/vrilutza/facetimehd-firmware); its default branch carries
-two fixes of its own. Neither repository contains the binaries themselves — they are Apple's, and the
+the extraction changes in [#14](https://github.com/patjak/facetimehd-firmware/pull/14), still open upstream.
+Neither repository contains the binaries themselves — they are Apple's, and the
 tool extracts them from your own download, verifying each one against a known hash.
 
 This branch is used daily here with firmware **5.60.0**, which the tool fetches by default and which
