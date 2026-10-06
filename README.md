@@ -38,23 +38,38 @@ Installing
 On Debian and derivatives; adapt the package names elsewhere.
 
 ```
-sudo apt install build-essential linux-headers-$(uname -r) dkms git curl xz-utils cpio
+sudo apt install build-essential linux-headers-$(uname -r) dkms git curl xz-utils cpio v4l-utils
 ```
 
-**1. Firmware and calibration first** — the driver loads at probe and needs them:
+**1. Firmware and calibration first.** The driver needs firmware to initialize and loads the
+calibration file if one is available for the sensor:
 
 ```
 git clone https://github.com/vrilutza/facetimehd-firmware.git
 cd facetimehd-firmware
 make                 # downloads from Apple and verifies every file against a known hash
 sudo make install    # into /lib/firmware/facetimehd/
+cd ..
 ```
 
-**2. The driver.** Either a plain build:
+Prevent `bdc_pci` from binding to the camera on future boots, for either installation method:
+
+```
+printf 'blacklist bdc_pci\n' | sudo tee /etc/modprobe.d/facetimehd.conf
+```
+
+If `bdc_pci` is already loaded, reboot after installing the driver.
+
+**2. The driver.** Clone the source before choosing either installation method:
 
 ```
 git clone https://github.com/vrilutza/facetimehd.git
 cd facetimehd
+```
+
+For a plain build:
+
+```
 make
 sudo make install
 sudo depmod -a
@@ -64,15 +79,18 @@ sudo modprobe facetimehd
 or, to survive kernel upgrades, through DKMS:
 
 ```
-V=0.7.2+patched
+V=0.7.2+$(git rev-parse --short=12 HEAD)
 sudo mkdir -p /usr/src/facetimehd-$V
 git archive HEAD | sudo tar -x -C /usr/src/facetimehd-$V     # source only, no build leftovers
 sudo sed -i "s/^PACKAGE_VERSION=.*/PACKAGE_VERSION=$V/" /usr/src/facetimehd-$V/dkms.conf
 sudo dkms install -m facetimehd -v $V
+sudo modprobe facetimehd
 ```
 
-That installs it for the kernel you are running, and DKMS rebuilds it for every kernel you install
-afterwards. If you keep an older kernel around as a fallback, install it there too:
+The version includes the source revision so an update does not reuse an older DKMS build.
+That installs it for the kernel you are running. DKMS rebuilds it for later kernels when their
+headers and the distribution's DKMS hooks are available. If you keep an older kernel around as a
+fallback, install it there too:
 `sudo dkms install -m facetimehd -v $V -k <that kernel>`.
 
 **3. Check it came up:**
@@ -82,12 +100,9 @@ v4l2-ctl --list-devices
 dmesg | grep facetimehd | grep -E 'set file|S2 PLL'
 ```
 
-A healthy load says `S2 PLL is locked after 10 us` (sometimes 20) and `loaded set file facetimehd/NNNN_01XX.dat`.
-If it says the set file is missing, step 1 did not run or did not cover your sensor — the message
-names the file it wants.
-
-The driver conflicts with `bdc_pci`, which the DKMS config blacklists for you; on a plain build,
-blacklist it yourself if your distribution ships it.
+The log reports the PLL status and `loaded set file facetimehd/NNNN_01XX.dat` when calibration loads.
+The PLL timing can vary; these messages alone do not verify a working capture. If the set file is
+missing, check that the installed calibration files include the name requested in the log.
 
 Firmware and calibration
 ------------------------
@@ -102,8 +117,9 @@ This branch is used daily here with firmware **5.60.0**, which the tool fetches 
 identifies itself as `S2ISP-01.57.00`. The older 1.43.0 works just as well: same formats, same sizes,
 same `1571_01XX.dat` calibration. The difference is in the image, measured on a static scene in low
 light over three interleaved rounds of 160 frames at the same exposure: 5.60.0 has **58 % less noise**
-but **33 % less real detail**. Cleaner and softer against grainier and sharper. `make FW_VER=1.43.0`
-gets the other one; both files can sit side by side in `/lib/firmware/facetimehd/`.
+but **33 % less real detail**. Cleaner and softer against grainier and sharper. For switching firmware
+versions, follow the firmware repository's instructions in a separate checkout.
+The driver always requests `facetimehd/firmware.bin`; installing the other version replaces that file.
 
 ---
 
