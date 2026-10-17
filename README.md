@@ -1,17 +1,17 @@
 facetimehd — patched branch
 ===========================
 
-This is a fork of [patjak/facetimehd](https://github.com/patjak/facetimehd). The default branch
-carries upstream `master` plus the changes from the open pull request #355 by pschatzmann, listed
-below. The other patches previously listed here are now part of upstream. `master` here is kept
-as a plain mirror of upstream, for rebasing.
+This is a fork of [patjak/facetimehd](https://github.com/patjak/facetimehd). Every change this
+branch carried is now part of upstream: the last one, #355 by pschatzmann, was merged on
+14 October 2026 (`6dc8cd8`), and the driver code here is identical to upstream `master`. `master`
+here is kept as a plain mirror of upstream.
 
 The compliance result below was recorded on revision `702c022`, on a **MacBookPro14,1**
 (sensor `0005 0248`), kernel 7.2.8. The later documentation commits and upstream merge leave every
 tracked file except this README unchanged from that tested revision. The result describes only
 that configuration.
 
-| PR | what it fixes |
+| PR (merged upstream) | what it fixes |
 |---|---|
 | [#355](https://github.com/patjak/facetimehd/pull/355) | `USERPTR` buffers that start inside a page are accepted again, with the offset carried to the hardware (by pschatzmann; see note) |
 
@@ -20,7 +20,8 @@ with the two `USERPTR` streaming tests actually exercised rather than reported a
 `DMABUF` is not tested here (`v4l2-compliance` needs an exporting device for it), and none of these
 tests exercises PipeWire's import of buffers.
 
-**Note on #355.** Upstream `master` refuses `USERPTR` entirely, through #333 — a patch of mine. #333
+**Note on #355.** Before #355, upstream `master` refused `USERPTR` entirely, through #333 — a
+patch of mine. #333
 stopped a real corruption: the driver dropped the offset of a buffer that does not start on a page
 boundary, and the camera wrote up to a page early. But it removed the mode instead of carrying the
 offset, which the hardware accepts. Going by the trace in #355 and PipeWire's source, that breaks
